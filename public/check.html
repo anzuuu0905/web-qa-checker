@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>チェック中... - WebQA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0f1a;
+      --bg-card: #111827;
+      --border: #1f2937;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --gradient-1: #3b82f6;
+      --gradient-2: #8b5cf6;
+      --gradient-3: #06b6d4;
+      --pass: #10b981;
+      --fail: #ef4444;
+      --warn: #f59e0b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Animated background */
+    .bg-gradient {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: -1;
+    }
+    .bg-gradient::before {
+      content: '';
+      position: absolute;
+      width: 800px; height: 800px;
+      top: -200px; right: -200px;
+      background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+      animation: float 20s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(50px, -30px) scale(1.1); }
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      padding: 2rem;
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .progress-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      text-align: center;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 2rem;
+      position: relative;
+    }
+    .spinner::before, .spinner::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+    }
+    .spinner::before {
+      width: 100%; height: 100%;
+      border: 3px solid var(--border);
+    }
+    .spinner::after {
+      width: 100%; height: 100%;
+      border: 3px solid transparent;
+      border-top-color: var(--accent);
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Done state */
+    .spinner.done::after {
+      animation: none;
+      border-top-color: var(--pass);
+      border-right-color: var(--pass);
+      border-bottom-color: var(--pass);
+    }
+    .spinner.error::after {
+      animation: none;
+      border-top-color: var(--fail);
+      border-right-color: var(--fail);
+      border-bottom-color: var(--fail);
+    }
+
+    .phase-text {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .checker-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      min-height: 1.4em;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gradient-1), var(--gradient-2));
+      border-radius: 3px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    .timer {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    /* Log */
+    .log-section {
+      margin-top: 1.5rem;
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 1rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      font-size: 0.8rem;
+    }
+
+    .log-item {
+      padding: 0.2rem 0;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .log-item .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .log-item.done .dot { background: var(--pass); }
+    .log-item.error .dot { background: var(--fail); }
+
+    /* Result card */
+    .result-card {
+      display: none;
+      margin-top: 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .result-card.visible { display: block; }
+
+    .score {
+      font-size: 4rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+    .score.good { color: var(--pass); }
+    .score.ok { color: var(--warn); }
+    .score.bad { color: var(--fail); }
+
+    .score-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .summary-item {
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      padding: 0.75rem;
+    }
+    .summary-item .value { font-size: 1.5rem; font-weight: 700; }
+    .summary-item .label { font-size: 0.7rem; color: var(--text-secondary); }
+    .summary-item.pass .value { color: var(--pass); }
+    .summary-item.fail .value { color: var(--fail); }
+    .summary-item.warn .value { color: var(--warn); }
+    .summary-item.manual .value { color: #6366f1; }
+
+    .view-report-btn {
+      display: inline-block;
+      padding: 0.9rem 2.5rem;
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2));
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .view-report-btn:hover {
+      opacity: 0.9;
+      transform: scale(1.03);
+    }
+
+    @media (max-width: 480px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .score { font-size: 3rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-gradient"></div>
+
+  <div class="container">
+    <div class="logo">🔍 WebQA</div>
+
+    <div class="progress-card" id="progressCard">
+      <div class="spinner" id="spinner"></div>
+      <div class="phase-text" id="phaseText">接続中...</div>
+      <div class="checker-text" id="checkerText"></div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="timer" id="timer">経過時間: 0秒</div>
+      <div class="log-section" id="logSection"></div>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="score" id="scoreValue"></div>
+      <div class="score-label">総合スコア</div>
+      <div class="summary-grid" id="summaryGrid"></div>
+      <a class="view-report-btn" id="reportLink" href="#">レポートを表示 →</a>
+    </div>
+  </div>
+
+  <script>
+    const checkId = window.location.pathname.split('/').pop();
+    const phaseText = document.getElementById('phaseText');
+    const checkerText = document.getElementById('checkerText');
+    const progressFill = document.getElementById('progressFill');
+    const timer = document.getElementById('timer');
+    const logSection = document.getElementById('logSection');
+    const spinner = document.getElementById('spinner');
+    const progressCard = document.getElementById('progressCard');
+    const resultCard = document.getElementById('resultCard');
+
+    let startTime = Date.now();
+    let checkerCount = 0;
+    // Approximate total checkers: 6 site-wide + 10 per page * ~3 pages + 1 device = ~37
+    const estimatedTotal = 40;
+
+    // Timer update
+    const timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const min = Math.floor(elapsed / 60);
+      const sec = elapsed % 60;
+      timer.textContent = `経過時間: ${min > 0 ? min + '分' : ''}${sec}秒`;
+    }, 1000);
+
+    function addLog(text, type = '') {
+      const item = document.createElement('div');
+      item.className = `log-item ${type}`;
+      item.innerHTML = `<span class="dot"></span><span>${text}</span>`;
+      logSection.appendChild(item);
+      logSection.scrollTop = logSection.scrollHeight;
+    }
+
+    function showResult(data) {
+      clearInterval(timerInterval);
+      spinner.classList.add('done');
+      phaseText.textContent = '✅ チェック完了';
+      checkerText.textContent = '';
+
+      const summary = data.summary;
+      const checkable = summary.total - summary.manual;
+      const score = checkable === 0 ? 100 : Math.round((summary.pass / checkable) * 100);
+
+      resultCard.classList.add('visible');
+      const scoreEl = document.getElementById('scoreValue');
+      scoreEl.textContent = score + '%';
+      scoreEl.className = `score ${score >= 80 ? 'good' : score >= 50 ? 'ok' : 'bad'}`;
+
+      document.getElementById('summaryGrid').innerHTML = `
+        <div class="summary-item pass"><div class="value">${summary.pass}</div><div class="label">✅ 合格</div></div>
+        <div class="summary-item fail"><div class="value">${summary.fail}</div><div class="label">❌ 不合格</div></div>
+        <div class="summary-item warn"><div class="value">${summary.warn}</div><div class="label">⚠️ 警告</div></div>
+        <div class="summary-item manual"><div class="value">${summary.manual}</div><div class="label">👁️ 手動確認</div></div>
+      `;
+
+      document.getElementById('reportLink').href = data.reportUrl;
+    }
+
+    // Connect to SSE
+    const evtSource = new EventSource(`/api/status/${checkId}`);
+
+    evtSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case 'phase':
+          phaseText.textContent = data.message;
+          addLog(data.message);
+          break;
+        case 'checker':
+          checkerText.textContent = `${data.message} をチェック中...`;
+          checkerCount++;
+          progressFill.style.width = Math.min(95, (checkerCount / estimatedTotal) * 100) + '%';
+          addLog(`✓ ${data.message}`, 'done');
+          break;
+        case 'info':
+          addLog(`ℹ️ ${data.message}`);
+          break;
+        case 'complete':
+          progressFill.style.width = '100%';
+          showResult(data);
+          evtSource.close();
+          break;
+        case 'done':
+          // Internal done event, wait for 'complete'
+          break;
+        case 'error':
+          spinner.classList.add('error');
+          phaseText.textContent = '❌ エラーが発生しました';
+          checkerText.textContent = data.message;
+          addLog(`エラー: ${data.message}`, 'error');
+          clearInterval(timerInterval);
+          evtSource.close();
+          break;
+      }
+    };
+
+    evtSource.onerror = () => {
+      evtSource.close();
+    };
+  </script>
+</body>
+</html>

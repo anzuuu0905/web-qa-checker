@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QAレポート - <%= report.site.name %></title>
+  <style>
+    :root {
+      --pass: #10b981;
+      --fail: #ef4444;
+      --warn: #f59e0b;
+      --manual: #6366f1;
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #334155;
+      --accent: #3b82f6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 3rem 2rem;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header .meta { color: var(--text-secondary); font-size: 0.9rem; }
+    .header .meta a { color: var(--accent); text-decoration: none; }
+
+    /* Score card */
+    .score-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .score-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      border: 1px solid var(--border);
+      transition: transform 0.2s;
+    }
+    .score-card:hover { transform: translateY(-2px); }
+    .score-card.main {
+      grid-column: 1 / 2;
+      background: linear-gradient(135deg, #1e3a5f, #1e293b);
+    }
+    .score-card .value { font-size: 2.5rem; font-weight: 700; }
+    .score-card .label { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+    .score-card.pass .value { color: var(--pass); }
+    .score-card.fail .value { color: var(--fail); }
+    .score-card.warn .value { color: var(--warn); }
+    .score-card.manual .value { color: var(--manual); }
+
+    /* Sections */
+    .section {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .section-header {
+      padding: 1rem 1.5rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+    }
+    .section-header:hover { background: rgba(255,255,255,0.05); }
+    .section-content { padding: 0; }
+
+    /* Standard/Purpose info */
+    .standard-info { font-size: 0.78em; color: #64748b; margin-top: 4px; line-height: 1.4; }
+    .standard-info .standard-badge { display: inline-block; background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 1px 6px; border-radius: 3px; font-size: 0.85em; margin-right: 6px; }
+    .standard-info .purpose-text { color: #94a3b8; }
+
+    /* Check items */
+    .check-item {
+      display: grid;
+      grid-template-columns: 2rem 200px 1fr;
+      gap: 1rem;
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      align-items: start;
+      font-size: 0.9rem;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item .icon { font-size: 1rem; }
+    .check-item .name { font-weight: 500; }
+    .check-item .detail { color: var(--text-secondary); word-break: break-all; }
+    .check-item.fail { background: rgba(239, 68, 68, 0.05); }
+    .check-item.warn { background: rgba(245, 158, 11, 0.05); }
+
+    .sub-items {
+      margin-top: 0.5rem;
+      padding-left: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      border-left: 2px solid var(--border);
+    }
+    .sub-items li {
+      list-style: none;
+      padding: 0.15rem 0;
+      word-break: break-all;
+    }
+    .sub-items a { color: var(--accent); text-decoration: none; }
+    .sub-items a:hover { text-decoration: underline; }
+
+    /* Solution Box */
+    .solution-box {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: rgba(16, 185, 129, 0.15); /* より明確に目立つ緑背景 */
+      border-left: 3px solid var(--pass);
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .solution-box .solution-title {
+      font-weight: 600;
+      color: var(--pass);
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .solution-box .solution-text {
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .solution-box a { color: var(--accent); text-decoration: none; }
+    .solution-box a:hover { text-decoration: underline; }
+
+    /* Visual Diff Comparison */
+    .visual-diff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+      margin: 1rem 0;
+      padding: 0.75rem;
+    }
+    .visual-diff-item {
+      text-align: center;
+    }
+    .visual-diff-item img {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .visual-diff-item img:hover {
+      transform: scale(1.02);
+    }
+    .visual-diff-item .caption {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+    .diff-percent {
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 0.5rem;
+    }
+    .diff-percent.pass { color: var(--pass); }
+    .diff-percent.fail { color: var(--fail); }
+    .diff-percent.warn { color: var(--warn); }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge.pass { background: rgba(16, 185, 129, 0.15); color: var(--pass); }
+    .badge.fail { background: rgba(239, 68, 68, 0.15); color: var(--fail); }
+    .badge.warn { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
+    .badge.manual { background: rgba(99, 102, 241, 0.15); color: var(--manual); }
+
+    /* Page tabs */
+    .page-tabs {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem 1.5rem;
+      overflow-x: auto;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-tab {
+      padding: 0.4rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .page-tab:hover, .page-tab.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Screenshots — horizontal scrollable comparison */
+    .screenshot-grid {
+      display: flex;
+      gap: 1rem;
+      padding: 1.5rem;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+    }
+    .screenshot-item {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+      flex-shrink: 0;
+      scroll-snap-align: start;
+      cursor: pointer;
+    }
+    .screenshot-item img {
+      height: 400px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+      transition: transform 0.3s;
+    }
+    .screenshot-item:hover img { transform: scale(1.02); }
+    .screenshot-item .caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0.5rem;
+      background: rgba(0,0,0,0.8);
+      font-size: 0.75rem;
+      text-align: center;
+    }
+
+    /* Cross-browser comparison */
+    .browser-compare {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      padding: 1.5rem;
+    }
+    .browser-column h4 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .browser-column img {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+
+
+    /* Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      cursor: zoom-out;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-width: 95vw;
+      max-height: 95vh;
+      object-fit: contain;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .score-section { grid-template-columns: repeat(2, 1fr); }
+      .score-card.main { grid-column: 1 / -1; }
+      .check-item { grid-template-columns: 2rem 1fr; }
+      .check-item .detail { grid-column: 2; }
+      .container { padding: 1rem; }
+      .browser-compare { grid-template-columns: 1fr; }
+    }
+
+    /* Collapsible */
+    .collapsible-content { display: none; }
+    .collapsible-content.active { display: block; }
+    .chevron { transition: transform 0.2s; }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* Page content visibility */
+    .page-content { display: none; }
+    .page-content.active { display: block; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      justify-content: center;
+    }
+    .filter-btn {
+      padding: 0.5rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    .filter-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .filter-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .filter-btn.active-fail {
+      background: var(--fail);
+      color: white;
+      border-color: var(--fail);
+    }
+    .filter-btn.active-warn {
+      background: var(--warn);
+      color: #000;
+      border-color: var(--warn);
+    }
+    .check-item.filter-hidden { display: none !important; }
+    .section-content.filter-all-hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="">
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🔍 Web QA チェックレポート V2</h1>
+    <div class="meta">
+      <strong><%= report.site.name %></strong> |
+      <a href="<%= report.site.url %>" target="_blank"><%= report.site.url %></a> |
+      <%= formatDate(report.timestamp) %> |
+      実行時間: <%= report.elapsed %>秒
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- Score Summary -->
+    <div class="score-section">
+      <div class="score-card main">
+        <div class="value" style="color: <%= calculateScore(report.summary) >= 80 ? 'var(--pass)' : calculateScore(report.summary) >= 50 ? 'var(--warn)' : 'var(--fail)' %>">
+          <%= calculateScore(report.summary) %>%
+        </div>
+        <div class="label">総合スコア</div>
+      </div>
+      <div class="score-card pass">
+        <div class="value"><%= report.summary.pass %></div>
+        <div class="label">✅ 合格</div>
+      </div>
+      <div class="score-card fail">
+        <div class="value"><%= report.summary.fail %></div>
+        <div class="label">❌ 不合格</div>
+      </div>
+      <div class="score-card warn">
+        <div class="value"><%= report.summary.warn %></div>
+        <div class="label">⚠️ 警告</div>
+      </div>
+      <div class="score-card manual">
+        <div class="value"><%= report.summary.manual %></div>
+        <div class="label">👁️ 手動確認</div>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <button class="filter-btn" data-filter="all" onclick="applyFilter(this, 'all')">📋 すべて表示</button>
+      <button class="filter-btn" data-filter="fail" onclick="applyFilter(this, 'fail')">❌ エラーのみ</button>
+      <button class="filter-btn active-warn" data-filter="fail-warn" onclick="applyFilter(this, 'fail-warn')">❌⚠️ エラー＋警告</button>
+    </div>
+
+    <!-- Site-wide checks -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span>🌐 サイト全体チェック</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="collapsible-content active">
+        <% for (const [key, checker] of Object.entries(report.siteWide)) { %>
+          <div class="section-content">
+            <div class="check-item" style="background: rgba(255,255,255,0.03);">
+              <span></span>
+              <span class="name" style="font-weight: 600;"><%= checker.name %></span>
+              <span><span class="badge <%= checker.status %>"><%= statusLabel(checker.status) %></span></span>
+            </div>
+            <% if (checker.items) { %>
+              <% for (const item of checker.items) { %>
+                <div class="check-item <%= item.status %>">
+                  <span class="icon"><%= statusIcon(item.status) %></span>
+                  <span class="name"><%= item.name %></span>
+                  <span class="detail">
+                    <%- linkify(item.detail) %>
+                    <% if (item.subItems && item.subItems.length > 0) { %>
+                      <ul class="sub-items">
+                        <% const maxSubItems = 10; %>
+                        <% for (const sub of item.subItems.slice(0, maxSubItems)) { %>
+                          <li>• <%- linkify(sub.message) %></li>
+                        <% } %>
+                        <% if (item.subItems.length > maxSubItems) { %>
+                          <li>• ...他<%= item.subItems.length - maxSubItems %>件</li>
+                        <% } %>
+                      </ul>
+                    <% } %>
+                    <% if (item.standard || item.purpose) { %>
+                      <div class="standard-info">
+                        <% if (item.standard) { %><span class="standard-badge">📐 <%= item.standard %></span><% } %>
+                        <% if (item.purpose) { %><span class="purpose-text">💡 <%= item.purpose %></span><% } %>
+                      </div>
+                    <% } %>
+                    <% if (item.solution) { %>
+                      <div class="solution-box">
+                        <div class="solution-title">🔧 改善アクション</div>
+                        <div class="solution-text"><%- linkify(item.solution) %></div>
+                      </div>
+                    <% } %>
+                  </span>
+                </div>
+              <% } %>
+            <% } %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Per-page checks -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span>📄 ページ別チェック結果</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="collapsible-content active">
+        <div class="page-tabs">
+          <% const pageNames = Object.keys(report.pages); %>
+          <% for (let i = 0; i < pageNames.length; i++) { %>
+            <div class="page-tab <%= i === 0 ? 'active' : '' %>" onclick="switchPage(this, '<%= i %>')">
+              <%= pageNames[i] %>
+            </div>
+          <% } %>
+        </div>
+        <% for (let pi = 0; pi < pageNames.length; pi++) { %>
+          <div class="page-content <%= pi === 0 ? 'active' : '' %>" id="page-<%= pi %>">
+            <% const pageResults = report.pages[pageNames[pi]]; %>
+            <% for (const [checkerKey, checker] of Object.entries(pageResults)) { %>
+              <div class="check-item" style="background: rgba(255,255,255,0.03);">
+                <span></span>
+                <span class="name" style="font-weight: 600;"><%= checker.name %></span>
+                <span><span class="badge <%= checker.status %>"><%= statusLabel(checker.status) %></span></span>
+              </div>
+              <% if (checker.items) { %>
+                <% for (const item of checker.items) { %>
+                  <div class="check-item <%= item.status %>">
+                    <span class="icon"><%= statusIcon(item.status) %></span>
+                    <span class="name"><%= item.name %></span>
+                    <span class="detail">
+                      <%- linkify(item.detail) %>
+                      <% if (item.subItems && item.subItems.length > 0) { %>
+                        <ul class="sub-items">
+                          <% const maxSubItems2 = 10; %>
+                        <% for (const sub of item.subItems.slice(0, maxSubItems2)) { %>
+                            <li>• <%- linkify(sub.message) %></li>
+                        <% } %>
+                        <% if (item.subItems.length > maxSubItems2) { %>
+                            <li>• ...他<%= item.subItems.length - maxSubItems2 %>件</li>
+                        <% } %>
+                        </ul>
+                      <% } %>
+                      <% if (item.standard || item.purpose) { %>
+                        <div class="standard-info">
+                          <% if (item.standard) { %><span class="standard-badge">📐 <%= item.standard %></span><% } %>
+                          <% if (item.purpose) { %><span class="purpose-text">💡 <%= item.purpose %></span><% } %>
+                        </div>
+                      <% } %>
+                      <% if (item.solution) { %>
+                        <div class="solution-box">
+                          <div class="solution-title">🔧 改善アクション</div>
+                          <div class="solution-text"><%- linkify(item.solution) %></div>
+                        </div>
+                      <% } %>
+                    </span>
+                  </div>
+                <% } %>
+              <% } %>
+
+              <!-- Screenshots for responsive checker -->
+              <% if (checker.screenshots && checker.screenshots.length > 0) { %>
+                <div class="screenshot-grid">
+                  <% for (const ss of checker.screenshots) { %>
+                    <div class="screenshot-item" onclick="openLightbox('screenshots/<%= ss.filename %>')">
+                      <img src="screenshots/<%= ss.filename %>" alt="<%= ss.width %>px" loading="lazy">
+                      <div class="caption"><%= ss.width %>px</div>
+                    </div>
+                  <% } %>
+                </div>
+              <% } %>
+
+              <!-- Visual Diff screenshots (Figma vs Site) -->
+              <% if (checker.items) { %>
+                <% for (const item of checker.items) { %>
+                  <% if (item.screenshots) { %>
+                    <div class="visual-diff-grid">
+                      <div class="visual-diff-item">
+                        <img src="screenshots/<%= item.screenshots.figma %>" alt="Figmaデザイン" loading="lazy" onclick="openLightbox('screenshots/<%= item.screenshots.figma %>')">
+                        <div class="caption">🎨 Figmaデザイン</div>
+                      </div>
+                      <div class="visual-diff-item">
+                        <img src="screenshots/<%= item.screenshots.site %>" alt="実装サイト" loading="lazy" onclick="openLightbox('screenshots/<%= item.screenshots.site %>')">
+                        <div class="caption">🌐 実装サイト</div>
+                      </div>
+                      <div class="visual-diff-item">
+                        <img src="screenshots/<%= item.screenshots.diff %>" alt="差分" loading="lazy" onclick="openLightbox('screenshots/<%= item.screenshots.diff %>')">
+                        <div class="caption">🔍 差分ハイライト</div>
+                      </div>
+                    </div>
+                    <div class="diff-percent <%= item.status %>">
+                      差分率: <%= item.diffPercent %>%
+                    </div>
+                  <% } %>
+                <% } %>
+              <% } %>
+
+            <% } %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Cross-browser screenshots -->
+    <% if (report.crossBrowser && Object.keys(report.crossBrowser).length > 0) { %>
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span>🌍 クロスブラウザ表示比較</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="collapsible-content">
+          <% for (const [browserName, checker] of Object.entries(report.crossBrowser)) { %>
+            <div class="check-item" style="background: rgba(255,255,255,0.03);">
+              <span></span>
+              <span class="name" style="font-weight: 600;"><%= checker.name %></span>
+              <span><span class="badge <%= checker.status %>"><%= statusLabel(checker.status) %></span></span>
+            </div>
+            <% if (checker.items) { %>
+              <% for (const item of checker.items) { %>
+                <div class="check-item <%= item.status %>">
+                  <span class="icon"><%= statusIcon(item.status) %></span>
+                  <span class="name"><%= item.page || item.name %></span>
+                  <span class="detail"><%- linkify(item.detail) %></span>
+                </div>
+              <% } %>
+            <% } %>
+          <% } %>
+
+          <!-- Browser comparison by page -->
+          <% const browserNames = Object.keys(report.crossBrowser); %>
+          <% if (browserNames.length >= 2) { %>
+            <div style="padding: 1rem 1.5rem;">
+              <h3 style="margin-bottom: 1rem; font-size: 1rem;">📸 ブラウザ別スクリーンショット比較</h3>
+              <%
+                const allPages = {};
+                for (const bn of browserNames) {
+                  const cb = report.crossBrowser[bn];
+                  if (cb.crossScreenshots) {
+                    for (const ss of cb.crossScreenshots) {
+                      if (!allPages[ss.page]) allPages[ss.page] = {};
+                      allPages[ss.page][bn] = ss;
+                    }
+                  }
+                }
+              %>
+              <% for (const [pageName, browsers] of Object.entries(allPages)) { %>
+                <h4 style="margin: 1rem 0 0.5rem; color: var(--text-secondary);"><%= pageName %></h4>
+                <div class="browser-compare">
+                  <% for (const bn of browserNames) { %>
+                    <div class="browser-column">
+                      <h4><%= browsers[bn]?.browser || bn %></h4>
+                      <% if (browsers[bn]) { %>
+                        <img src="screenshots/<%= browsers[bn].filename %>" alt="<%= browsers[bn].browser %>" loading="lazy" onclick="openLightbox('screenshots/<%= browsers[bn].filename %>')">
+                      <% } else { %>
+                        <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">N/A</div>
+                      <% } %>
+                    </div>
+                  <% } %>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+
+
+
+    <!-- Manual check reminders -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span>👁️ 手動確認チェックリスト</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="collapsible-content">
+        <div class="check-item">
+          <span class="icon">☐</span>
+          <span class="name">フォント確認</span>
+          <span class="detail">font-family, font-size, colorがデザインカンプ通りか確認</span>
+        </div>
+        <div class="check-item">
+          <span class="icon">☐</span>
+          <span class="name">ホバーアクション</span>
+          <span class="detail">ボタン・リンクのホバーエフェクトが適切か確認</span>
+        </div>
+        <div class="check-item">
+          <span class="icon">☐</span>
+          <span class="name">パーフェクトピクセル</span>
+          <span class="detail">デザインカンプとの概ねの一致を確認</span>
+        </div>
+        <div class="check-item">
+          <span class="icon">☐</span>
+          <span class="name">バックアップ</span>
+          <span class="detail">公開直前のバックアップを実施したか確認</span>
+        </div>
+        <div class="check-item">
+          <span class="icon">☐</span>
+          <span class="name">管理者メールアドレス</span>
+          <span class="detail">WordPress管理者メールがクライアントのものに設定されているか確認</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Generated by Web QA Checker V2 | <%= formatDate(report.timestamp) %>
+  </div>
+
+  <script>
+    function toggleSection(header) {
+      const content = header.nextElementSibling;
+      const chevron = header.querySelector('.chevron');
+      content.classList.toggle('active');
+      chevron.classList.toggle('open');
+    }
+
+    function switchPage(tab, index) {
+      document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.page-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('page-' + index).classList.add('active');
+    }
+
+    function openLightbox(src) {
+      const lb = document.getElementById('lightbox');
+      document.getElementById('lightbox-img').src = src;
+      lb.classList.add('active');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+
+    // Filter logic
+    function applyFilter(btn, filter) {
+      // Update button active state
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('active', 'active-fail', 'active-warn');
+      });
+      if (filter === 'all') btn.classList.add('active');
+      else if (filter === 'fail') btn.classList.add('active-fail');
+      else if (filter === 'fail-warn') btn.classList.add('active-warn');
+
+      // Get all individual check items (not category headers)
+      const allItems = document.querySelectorAll('.check-item:not([style*="rgba(255,255,255,0.03)"])');
+
+      if (filter === 'all') {
+        allItems.forEach(item => item.classList.remove('filter-hidden'));
+        document.querySelectorAll('.section-content').forEach(s => s.classList.remove('filter-all-hidden'));
+      } else {
+        allItems.forEach(item => {
+          const isFail = item.classList.contains('fail');
+          const isWarn = item.classList.contains('warn');
+          if (filter === 'fail') {
+            item.classList.toggle('filter-hidden', !isFail);
+          } else if (filter === 'fail-warn') {
+            item.classList.toggle('filter-hidden', !(isFail || isWarn));
+          }
+        });
+
+        // Hide section-content blocks where all child items are hidden
+        document.querySelectorAll('.section-content').forEach(sc => {
+          const visibleItems = sc.querySelectorAll('.check-item:not(.filter-hidden):not([style*="rgba(255,255,255,0.03)"])');
+          const categoryHeader = sc.querySelector('.check-item[style*="rgba(255,255,255,0.03)"]');
+          if (visibleItems.length === 0) {
+            sc.classList.add('filter-all-hidden');
+          } else {
+            sc.classList.remove('filter-all-hidden');
+          }
+        });
+      }
+    }
+    // Apply default filter on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      const defaultBtn = document.querySelector('.filter-btn[data-filter="fail-warn"]');
+      if (defaultBtn) applyFilter(defaultBtn, 'fail-warn');
+    });
+  </script>
+
+</body>
+</html>

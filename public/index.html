@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebQA - サイト品質チェッカー</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0f1a;
+      --bg-card: #111827;
+      --bg-card-hover: #1f2937;
+      --border: #1f2937;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --gradient-1: #3b82f6;
+      --gradient-2: #8b5cf6;
+      --gradient-3: #06b6d4;
+      --pass: #10b981;
+      --fail: #ef4444;
+      --warn: #f59e0b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Animated background */
+    .bg-gradient {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: -1;
+      overflow: hidden;
+    }
+    .bg-gradient::before {
+      content: '';
+      position: absolute;
+      width: 800px; height: 800px;
+      top: -200px; right: -200px;
+      background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+      animation: float 20s ease-in-out infinite;
+    }
+    .bg-gradient::after {
+      content: '';
+      position: absolute;
+      width: 600px; height: 600px;
+      bottom: -100px; left: -100px;
+      background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+      animation: float 25s ease-in-out infinite reverse;
+    }
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(50px, -30px) scale(1.1); }
+    }
+
+    /* Header */
+    .header {
+      padding: 2rem 2rem 1rem;
+      text-align: center;
+    }
+    .logo {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Hero */
+    .hero {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      text-align: center;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      text-align: center;
+      max-width: 550px;
+      margin-bottom: 3rem;
+      line-height: 1.7;
+    }
+
+    /* URL Input */
+    .input-group {
+      width: 100%;
+      max-width: 640px;
+      position: relative;
+    }
+
+    .input-wrapper {
+      display: flex;
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    }
+
+    .input-wrapper input {
+      flex: 1;
+      padding: 1.1rem 1.5rem;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 1.05rem;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .input-wrapper input::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    .input-wrapper button {
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2));
+      color: white;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.2s;
+      white-space: nowrap;
+    }
+
+    .input-wrapper button:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+
+    .input-wrapper button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .error-msg {
+      color: var(--fail);
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+      text-align: center;
+      min-height: 1.2em;
+    }
+
+    /* Features */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      width: 100%;
+      max-width: 640px;
+      margin-top: 3rem;
+    }
+
+    .feature {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    .feature:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-2px);
+    }
+
+    .feature .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature .title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .feature .desc {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    /* Footer */
+    .footer {
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 2.2rem; }
+      .hero p { font-size: 1rem; }
+      .features { grid-template-columns: 1fr; }
+      .input-wrapper {
+        flex-direction: column;
+      }
+      .input-wrapper button {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-gradient"></div>
+
+  <div class="header">
+    <div class="logo">🔍 WebQA</div>
+  </div>
+
+  <div class="hero">
+    <h1>Webサイトの品質を<br>ワンクリックで診断</h1>
+    <p>URLを入力するだけで、HTML品質・SEO・レスポンシブ・パフォーマンスなど約100項目を自動チェックし、美しいレポートを生成します。</p>
+
+    <div class="input-group">
+      <div class="input-wrapper">
+        <input type="url" id="urlInput" placeholder="https://example.com" autocomplete="url" spellcheck="false">
+        <button id="checkBtn" onclick="startCheck()">チェック開始</button>
+      </div>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="icon">📊</div>
+        <div class="title">100項目+</div>
+        <div class="desc">自動品質チェック</div>
+      </div>
+      <div class="feature">
+        <div class="icon">📱</div>
+        <div class="title">7デバイス</div>
+        <div class="desc">レスポンシブ検証</div>
+      </div>
+      <div class="feature">
+        <div class="icon">⚡</div>
+        <div class="title">パフォーマンス</div>
+        <div class="desc">LCP / CLS 計測</div>
+      </div>
+      <div class="feature">
+        <div class="icon">🔗</div>
+        <div class="title">リンク検証</div>
+        <div class="desc">内部/外部リンク切れ</div>
+      </div>
+      <div class="feature">
+        <div class="icon">🔍</div>
+        <div class="title">SEO分析</div>
+        <div class="desc">メタ・見出し・構造</div>
+      </div>
+      <div class="feature">
+        <div class="icon">🛡️</div>
+        <div class="title">セキュリティ</div>
+        <div class="desc">HTTPS・ヘッダー確認</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Powered by WebQA Checker — Built with Playwright
+  </div>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const checkBtn = document.getElementById('checkBtn');
+    const errorMsg = document.getElementById('errorMsg');
+
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') startCheck();
+    });
+
+    // Auto-focus
+    urlInput.focus();
+
+    async function startCheck() {
+      const url = urlInput.value.trim();
+      errorMsg.textContent = '';
+
+      if (!url) {
+        errorMsg.textContent = 'URLを入力してください';
+        return;
+      }
+
+      // Add protocol if missing
+      let fullUrl = url;
+      if (!/^https?:\/\//i.test(url)) {
+        fullUrl = 'https://' + url;
+      }
+
+      try {
+        new URL(fullUrl);
+      } catch {
+        errorMsg.textContent = '有効なURLを入力してください';
+        return;
+      }
+
+      checkBtn.disabled = true;
+      checkBtn.textContent = '送信中...';
+
+      try {
+        const res = await fetch('/api/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: fullUrl }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          errorMsg.textContent = data.error || 'エラーが発生しました';
+          checkBtn.disabled = false;
+          checkBtn.textContent = 'チェック開始';
+          return;
+        }
+
+        // Redirect to progress page
+        window.location.href = `/check/${data.id}`;
+      } catch (err) {
+        errorMsg.textContent = err.message || 'サーバーに接続できません';
+        checkBtn.disabled = false;
+        checkBtn.textContent = 'チェック開始';
+      }
+    }
+  </script>
+</body>
+</html>

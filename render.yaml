@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: web-qa-checker
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3200"
