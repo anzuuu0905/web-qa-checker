@@ -11,7 +11,6 @@ import { checkSeo } from './checkers/seo-checker.js';
 import { checkLinks } from './checkers/link-checker.js';
 import { checkImages } from './checkers/image-checker.js';
 import { checkConsole } from './checkers/console-checker.js';
-import { checkResponsive } from './checkers/responsive-checker.js';
 import { checkForm } from './checkers/form-checker.js';
 import { checkPerformance } from './checkers/performance-checker.js';
 import { checkFavicon } from './checkers/favicon-checker.js';
@@ -19,7 +18,7 @@ import { checkOgp } from './checkers/ogp-checker.js';
 import { checkWordPress } from './checkers/wp-checker.js';
 import { checkDummy } from './checkers/dummy-checker.js';
 import { checkIndex } from './checkers/index-checker.js';
-import { checkDevices } from './checkers/device-checker.js';
+
 import { checkAnalytics } from './checkers/analytics-checker.js';
 import { checkAssets } from './checkers/asset-checker.js';
 import { checkSchema } from './checkers/schema-checker.js';
@@ -258,9 +257,6 @@ export async function runWebChecks({ url, siteName, reportDir, screenshotDir, em
     await siteWidePage.goto(topUrl, { waitUntil: 'networkidle', timeout: 30000 });
 
     // All these checkers reuse the same loaded page (no additional goto)
-    report.siteWide.ogp = await runChecker('OGP / SNS共有', () =>
-      checkOgp(siteWidePage), emit);
-
     report.siteWide.favicon = await runChecker('ファビコン', () =>
       checkFavicon(siteWidePage), emit);
 
@@ -329,8 +325,7 @@ export async function runWebChecks({ url, siteName, reportDir, screenshotDir, em
     pageResults.links = await runChecker('リンク', () => checkLinks(page, config.site.url, config.checkers.links), emit);
     pageResults.images = await runChecker('画像', () => checkImages(page, config.checkers.images), emit);
     pageResults.console = await runChecker('コンソール', () => checkConsole(consoleResults), emit);
-    pageResults.responsive = await runChecker('レスポンシブ', () =>
-      checkResponsive(page, pageUrl, pageName, config.checkers.responsive, screenshotDir), emit);
+    pageResults.ogp = await runChecker('OGP / SNS共有', () => checkOgp(page), emit);
     pageResults.dummy = await runChecker('ダミーコンテンツ', () => checkDummy(page), emit);
     pageResults.assets = await runChecker('アセット最適化', () => checkAssets(page, config.site.url), emit);
     pageResults.schema = await runChecker('構造化データ', () => checkSchema(page), emit);
@@ -339,11 +334,7 @@ export async function runWebChecks({ url, siteName, reportDir, screenshotDir, em
     report.pages[pageName] = pageResults;
   }
 
-  // ===== Device emulation =====
-  emit('phase', 'マルチデバイスチェック');
-  const topPageConfig = config.pages.find(p => p.path === '/') || config.pages[0];
-  report.deviceCheck = await runChecker('マルチデバイス', () =>
-    checkDevices(context, config.site.url + topPageConfig.path, topPageConfig.name, screenshotDir, {}), emit);
+
 
   await browser.close();
   calculateSummary(report);
