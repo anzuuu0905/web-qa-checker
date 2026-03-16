@@ -4,16 +4,20 @@
 
 /**
  * Check OGP meta tags and Twitter Card
- * @param {import('playwright').BrowserContext} context
- * @param {string} url
+ * @param {import('playwright').BrowserContext|import('playwright').Page} contextOrPage
+ * @param {string} [url] - URL (required when passing context)
  * @returns {Promise<import('../types').CheckResult>}
  */
-export async function checkOgp(context, url) {
+export async function checkOgp(contextOrPage, url) {
   const items = [];
-  const page = await context.newPage();
+  // If a Page is passed directly, reuse it (no goto needed)
+  const isPage = typeof contextOrPage.goto === 'function';
+  const page = isPage ? contextOrPage : await contextOrPage.newPage();
 
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (!isPage) {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    }
 
     const ogpData = await page.evaluate(() => {
       const getMeta = (attr, value) => {
@@ -166,7 +170,7 @@ export async function checkOgp(context, url) {
       });
     }
   } finally {
-    await page.close();
+    if (!isPage) await page.close();
   }
 
   const overallStatus = items.some((i) => i.status === 'fail')

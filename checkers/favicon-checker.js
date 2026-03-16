@@ -4,16 +4,19 @@
 
 /**
  * Check favicon existence and configuration
- * @param {import('playwright').BrowserContext} context
- * @param {string} url
+ * @param {import('playwright').BrowserContext|import('playwright').Page} contextOrPage
+ * @param {string} [url] - URL (required when passing context)
  * @returns {Promise<import('../types').CheckResult>}
  */
-export async function checkFavicon(context, url) {
+export async function checkFavicon(contextOrPage, url) {
   const items = [];
-  const page = await context.newPage();
+  const isPage = typeof contextOrPage.goto === 'function';
+  const page = isPage ? contextOrPage : await contextOrPage.newPage();
 
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (!isPage) {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    }
 
     // Check link tags for favicon
     const faviconLinks = await page.evaluate(() => {
@@ -74,7 +77,7 @@ export async function checkFavicon(context, url) {
       });
     }
   } finally {
-    await page.close();
+    if (!isPage) await page.close();
   }
 
   const overallStatus = items.some((i) => i.status === 'fail')

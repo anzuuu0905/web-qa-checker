@@ -11,8 +11,8 @@ RUN npm ci --production
 # Copy application files
 COPY . .
 
-# Create data directories
-RUN mkdir -p data/reports data/screenshots
+# Create data directories and set ownership for non-root user
+RUN mkdir -p data/reports data/screenshots && chown -R pwuser:pwuser data
 
 # Run as non-root user (pwuser is provided by Playwright image)
 USER pwuser

@@ -4,13 +4,14 @@
 
 /**
  * Check WordPress-specific items (external/HTTP access only)
- * @param {import('playwright').BrowserContext} context
+ * @param {import('playwright').BrowserContext|import('playwright').Page} contextOrPage
  * @param {string} baseUrl
  * @returns {Promise<import('../types').CheckResult>}
  */
-export async function checkWordPress(context, baseUrl) {
+export async function checkWordPress(contextOrPage, baseUrl) {
   const items = [];
-  const page = await context.newPage();
+  const isPage = typeof contextOrPage.goto === 'function';
+  const page = isPage ? contextOrPage : await contextOrPage.newPage();
 
   try {
     // 1. Check if /wp-login.php is accessible (should be hidden via SiteGuard etc.)
@@ -73,7 +74,9 @@ export async function checkWordPress(context, baseUrl) {
     }
 
     // 3. WP Version detection from meta generator or RSS
-    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (!isPage) {
+      await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    }
     const wpVersion = await page.evaluate(() => {
       const gen = document.querySelector('meta[name="generator"]');
       if (gen) {
@@ -347,7 +350,7 @@ export async function checkWordPress(context, baseUrl) {
     }
 
   } finally {
-    await page.close();
+    if (!isPage) await page.close();
   }
 
   const overallStatus = items.some((i) => i.status === 'fail')

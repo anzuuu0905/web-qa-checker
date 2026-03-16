@@ -246,58 +246,45 @@ export async function runWebChecks({ url, siteName, reportDir, screenshotDir, em
   } catch { /* skip */ }
   await detectPage.close();
 
-  // ===== Site-wide checks =====
+  // ===== Site-wide checks (shared page - single goto) =====
   emit('phase', 'サイト全体チェック');
 
   const topPage = config.pages.find(p => p.path === '/') || config.pages[0];
   const topUrl = config.site.url + topPage.path;
 
-  report.siteWide.ogp = await runChecker('OGP / SNS共有', () =>
-    checkOgp(context, topUrl), emit);
+  // Single shared page for most site-wide checks
+  const siteWidePage = await context.newPage();
+  try {
+    await siteWidePage.goto(topUrl, { waitUntil: 'networkidle', timeout: 30000 });
 
-  report.siteWide.favicon = await runChecker('ファビコン', () =>
-    checkFavicon(context, topUrl), emit);
+    // All these checkers reuse the same loaded page (no additional goto)
+    report.siteWide.ogp = await runChecker('OGP / SNS共有', () =>
+      checkOgp(siteWidePage), emit);
 
+    report.siteWide.favicon = await runChecker('ファビコン', () =>
+      checkFavicon(siteWidePage), emit);
+
+    report.siteWide.indexCheck = await runChecker('インデックス許可', () =>
+      checkIndex(siteWidePage, config.site.url), emit);
+
+    report.siteWide.analytics = await runChecker('GA4/GTM', () =>
+      checkAnalytics(siteWidePage), emit);
+
+    report.siteWide.security = await runChecker('セキュリティ', () =>
+      checkSecurity(siteWidePage, config.site.url), emit);
+
+    if (config.site.is_wordpress) {
+      report.siteWide.wordpress = await runChecker('WordPress', () =>
+        checkWordPress(siteWidePage, config.site.url), emit);
+    }
+  } catch (err) {
+    emit('info', `サイト全体チェックでエラー: ${err.message}`);
+  }
+  await siteWidePage.close();
+
+  // Performance needs its own page (response listeners must be set before goto)
   report.siteWide.performance = await runChecker('パフォーマンス', () =>
     checkPerformance(context, topUrl, config.checkers.performance), emit);
-
-  if (config.site.is_wordpress) {
-    report.siteWide.wordpress = await runChecker('WordPress', () =>
-      checkWordPress(context, config.site.url), emit);
-  }
-
-  // Index check
-  const indexPage = await context.newPage();
-  try {
-    await indexPage.goto(topUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    report.siteWide.indexCheck = await runChecker('インデックス許可', () =>
-      checkIndex(indexPage, config.site.url), emit);
-  } catch (err) {
-    report.siteWide.indexCheck = { name: 'インデックス許可', status: 'fail', items: [{ name: 'チェック', status: 'fail', detail: err.message }] };
-  }
-  await indexPage.close();
-
-  // Analytics check
-  const analyticsPage = await context.newPage();
-  try {
-    await analyticsPage.goto(topUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    report.siteWide.analytics = await runChecker('GA4/GTM', () =>
-      checkAnalytics(analyticsPage), emit);
-  } catch (err) {
-    report.siteWide.analytics = { name: 'GA4/GTMチェック', status: 'fail', items: [{ name: 'チェック', status: 'fail', detail: err.message }] };
-  }
-  await analyticsPage.close();
-
-  // Security check
-  const securityPage = await context.newPage();
-  try {
-    await securityPage.goto(topUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    report.siteWide.security = await runChecker('セキュリティ', () =>
-      checkSecurity(securityPage, config.site.url), emit);
-  } catch (err) {
-    report.siteWide.security = { name: 'セキュリティチェック', status: 'fail', items: [{ name: 'チェック', status: 'fail', detail: err.message }] };
-  }
-  await securityPage.close();
 
   // ===== Per-page checks =====
   for (let i = 0; i < config.pages.length; i++) {
